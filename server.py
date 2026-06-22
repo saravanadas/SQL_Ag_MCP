@@ -132,6 +132,9 @@ def get_connection(timeout_seconds: int) -> pyodbc.Connection:
         timeout=max(1, min(timeout_seconds, 60)),
         autocommit=True,
     )
+    # pyodbc exposes query timeout on the Connection object.
+    # Cursor.timeout is not supported by pyodbc on Linux.
+    connection.timeout = timeout_seconds
     return connection
 
 
@@ -194,7 +197,6 @@ def execute_inline(sql: str) -> dict[str, Any]:
     try:
         connection = get_connection(QUERY_TIMEOUT_SECONDS)
         cursor = connection.cursor()
-        cursor.timeout = QUERY_TIMEOUT_SECONDS
         cursor.execute(query)
         if not cursor.description:
             raise ValueError("The query did not return a result set.")
@@ -244,7 +246,6 @@ def execute_paged(sql: str, offset: int, limit: int) -> dict[str, Any]:
     try:
         connection = get_connection(QUERY_TIMEOUT_SECONDS)
         cursor = connection.cursor()
-        cursor.timeout = QUERY_TIMEOUT_SECONDS
         cursor.execute(paged_query, offset, limit)
         columns = [item[0] for item in cursor.description]
         rows = cursor.fetchall()
@@ -354,7 +355,6 @@ def export_query(sql: str, gzip_output: bool) -> dict[str, Any]:
     try:
         connection = get_connection(EXPORT_TIMEOUT_SECONDS)
         cursor = connection.cursor()
-        cursor.timeout = EXPORT_TIMEOUT_SECONDS
         cursor.arraysize = FETCH_BATCH_SIZE
         cursor.execute(query)
         if not cursor.description:
@@ -483,7 +483,6 @@ def audit_query(
     try:
         connection = get_connection(QUERY_TIMEOUT_SECONDS)
         cursor = connection.cursor()
-        cursor.timeout = QUERY_TIMEOUT_SECONDS
         cursor.execute(
             f"""
             INSERT INTO {AUDIT_TABLE}
